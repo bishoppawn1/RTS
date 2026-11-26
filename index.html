@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#202822" />
+    <title>Iron Basin — Field Command</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main id="console">
+      <header>
+        <div class="brand">
+          <svg viewBox="0 0 42 42" aria-hidden="true">
+            <path
+              fill="#b5d9a5"
+              d="M3 20 20 6l17 8-7 5-10-5-11 9zM4 25l6-5 11 6 15-11 3 5-17 13zM11 33l6-5 6 3 14-10 3 5-17 12z"
+            />
+          </svg>
+          <div><strong>IRON BASIN</strong><small>TACTICAL COMMAND</small></div>
+        </div>
+        <div class="stats">
+          <div class="stat" title="Metal available">
+            <i data-icon="metal"></i
+            ><span><small>METAL</small><b id="metal">420</b></span>
+          </div>
+          <div class="stat amber" title="Oil available">
+            <i data-icon="oil"></i
+            ><span><small>OIL</small><b id="oil">0</b></span>
+          </div>
+          <div class="stat" title="Friendly units on the field">
+            <i data-icon="units"></i
+            ><span><small>UNITS</small><b id="units">1</b></span>
+          </div>
+        </div>
+        <div class="time">
+          <span class="status-dot"></span><small id="status">LIVE</small
+          ><b id="clock">00:00</b>
+        </div>
+        <button
+          class="square"
+          id="pause"
+          aria-label="Pause game"
+          title="Pause (Space)"
+          data-icon="pause"
+        ></button
+        ><button
+          class="square"
+          id="help"
+          aria-label="Field manual"
+          title="Field manual"
+          data-icon="help"
+        ></button>
+      </header>
+      <section id="arena" aria-label="Isometric battlefield">
+        <canvas
+          id="field"
+          tabindex="0"
+          aria-label="Battlefield. Select units, then right-click a destination or enemy."
+        ></canvas>
+        <div class="mission">
+          <div class="mission-icon" data-icon="flag"></div>
+          <div>
+            <div class="overline"><span class="dash"></span> OPERATION 01</div>
+            <h1>Foothold</h1>
+            <div class="obj">
+              <span>◇</span><span id="objective">Build a refinery</span>
+            </div>
+          </div>
+        </div>
+        <button id="openBuild" aria-controls="buildMenu" aria-expanded="false">
+          <i data-icon="plus"></i>Build <kbd>B</kbd>
+        </button>
+        <section id="buildMenu" aria-label="Construction menu" hidden>
+          <div class="panel-head">
+            <span>CONSTRUCTION</span
+            ><button
+              id="closeBuild"
+              data-icon="close"
+              aria-label="Close construction menu"
+            ></button>
+          </div>
+          <div id="buildCards"></div>
+        </section>
+        <div class="map-tools">
+          <button
+            id="mapToggle"
+            data-icon="radar"
+            aria-label="Toggle tactical map"
+            aria-expanded="false"
+          ></button>
+          <button
+            id="zin"
+            title="Zoom in"
+            aria-label="Zoom in"
+            data-icon="plus"
+          ></button
+          ><span id="zoom">100%</span
+          ><button
+            id="zout"
+            title="Zoom out"
+            aria-label="Zoom out"
+            data-icon="minus"
+          ></button>
+          <div></div>
+          <button
+            id="home"
+            aria-label="Center on HQ"
+            title="Center on HQ (H)"
+            data-icon="focus"
+          ></button>
+        </div>
+        <div id="message" role="status"></div>
+        <div id="placement" hidden></div>
+      </section>
+      <section id="dock">
+        <div class="radar panel">
+          <div class="panel-head">
+            <span><i data-icon="radar"></i> TAC MAP</span><small>NW / 07</small>
+          </div>
+          <canvas
+            id="mini"
+            aria-label="Tactical minimap. Click to move camera."
+          ></canvas
+          ><span class="north" aria-hidden="true">↗ N</span>
+        </div>
+        <div class="selection panel">
+          <div class="panel-head">
+            <span><i data-icon="select"></i> SELECTION</span
+            ><small id="selected-count">01 SELECTED</small>
+          </div>
+          <div class="inspect">
+            <div class="portrait">
+              <canvas id="portrait"></canvas><span class="corn tl"></span
+              ><span class="corn br"></span>
+            </div>
+            <div class="info">
+              <div class="eyebrow" id="category">STRUCTURE</div>
+              <h2 id="name">Command HQ</h2>
+              <div id="healthtext"></div>
+              <div class="health"><span id="health"></span></div>
+              <div class="detail" id="detail"></div>
+            </div>
+          </div>
+        </div>
+        <div class="orders panel">
+          <div class="panel-head">
+            <span
+              ><i data-icon="commands"></i><b id="commandTitle">ORDERS</b></span
+            >
+          </div>
+          <div id="cards"></div>
+        </div>
+      </section>
+      <footer>
+        <span class="online"><i></i> COMMAND LINK ONLINE</span>
+        <div class="hints">
+          <span><kbd>LMB</kbd> Select</span><span><kbd>RMB</kbd> Order</span
+          ><span><kbd>A + LMB</kbd> Attack Move</span
+          ><span><kbd>SCROLL</kbd> Zoom</span>
+        </div>
+        <button id="manual"><i data-icon="keyboard"></i> Controls</button>
+      </footer>
+    </main>
+    <dialog id="dialog">
+      <div class="dialogtop">
+        <div class="eyebrow">IRON BASIN / FIELD COMMAND</div>
+        <button
+          id="dismiss"
+          aria-label="Close dialog"
+          data-icon="close"
+        ></button>
+      </div>
+      <h2 id="dialogtitle"></h2>
+      <div id="dialogbody"></div>
+      <div id="dialogactions"></div>
+    </dialog>
+    <script src="sim.js"></script>
+    <script src="art.js"></script>
+    <script src="world.js"></script>
+    <script src="navigation.js"></script>
+    <script src="main.js"></script>
+  </body>
+</html>
