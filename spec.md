@@ -1,10 +1,10 @@
 # Iron Basin
 
-Iron Basin is a single-player, modern-setting real-time strategy game played on an isometric battlefield. In **Foothold**, the player starts with Command HQ, an operating metal mine, one battle tank, 420 metal, and no oil. Establish a refinery, deliver oil, and destroy the northern outpost. Losing HQ ends the mission.
+Iron Basin is a single-player, modern-setting real-time strategy game played on an isometric battlefield. In **Foothold**, each side starts with a headquarters, one working metal mine, one refinery, one assigned hauler, one battle tank, 420 metal, and no oil. Build an oil well, deliver oil, and destroy the northern outpost. Losing HQ ends the mission.
 
 ## Construction and production
 
-Open **Build** from anywhere on the map. The opening objective is a refinery so the player can start earning metal. Place facilities on the highlighted construction grid in the clearings around HQ. Each footprint snaps to whole tiles. Roads, water, occupied tiles, deposits, loading areas, and units constrain placement. Metal mines and oil wells go directly on their matching deposits.
+Open **Build** from anywhere on the map. Place facilities on the highlighted construction grid in the clearings around HQ. Each footprint snaps to whole tiles. Roads, water, occupied tiles, deposits, loading areas, and units constrain placement. Metal mines and oil wells go directly on their matching deposits.
 
 Construction spends the cost and reserves the site immediately. Scaffolding and a percentage show progress. Extraction, the refinery’s free hauler, and unit production become available when construction finishes. Timers use game time and stop when paused.
 
@@ -16,13 +16,24 @@ Construction spends the cost and reserves the site immediately. Scaffolding and 
 | Metal mine | 140 | 7 s | Metal deposit. Extracts 4.2 metal per second. |
 | Oil well | 160 | 8 s | Oil field. Extracts 3.2 oil per second. |
 
-Select a completed producer to use its queue. Each barracks or factory processes one unit at a time and can hold five orders, including the active order. Separate buildings can produce concurrently.
+Select a factory or barracks to open its production panel. Shift-click matching buildings for a group, or use **Select factories** or **Select barracks** to select every completed producer of that type. Each click orders one unit at every selected building. Two Tank clicks with two factories queue four tanks for 720 metal and 220 oil. If any selected queue is full or the combined cost exceeds the stockpile, the entire order waits for a new click. Each barracks or factory processes one unit at a time and can hold five orders, including the active order. Separate buildings can produce concurrently.
 
 | Unit | Producer | Metal | Oil | Production time |
 | --- | --- | ---: | ---: | ---: |
 | Infantry | Barracks | 45 | 0 | 4 s |
+| Rocketeer | Barracks | 75 | 0 | 6 s |
+| Machine gunner | Barracks | 65 | 0 | 5 s |
+| Field medic | Barracks | 60 | 0 | 5 s |
 | Hauler | Vehicle factory | 85 | 0 | 4 s |
 | Battle tank | Vehicle factory | 180 | 55 | 8 s |
+
+Rocketeers deal 42 damage per hit against tanks and 12 against other targets. Machine gunners walk at 0.78 tiles per second compared with rifle infantry’s 1.12. They deal 13 damage per hit against infantry and 5 against other targets. Field medics are unarmed. While idle or attack-moving they stop to restore up to 12 HP every 1.2 seconds to the most injured friendly infantry member within 2.6 tiles, excluding themselves. Move orders take priority over treatment.
+
+## Northern base
+
+The computer uses its own stockpile, mines, oil wells, refineries, trucks, construction timers, and production queues. It expands into the northern clearing, adds a second hauler, and assigns trucks to metal and oil. Its barracks and factory recruit waves containing infantry and tanks. Its first attack can launch after 100 seconds once at least three combat units have assembled. Subsequent waves regroup for at least 65 seconds. An alert announces each departure.
+
+Attacking trucks, extractors, refineries, or producers interrupts the enemy’s supply chain. It can replace losses when its remaining stockpile permits. Destroying the enemy HQ wins the mission.
 
 ## Resource deliveries
 

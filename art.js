@@ -315,7 +315,7 @@ function resourceModel(p, type) {
     p.cyl(0, 0, 0.78, 0.17, 0.07, "#c0985f");
   }
 }
-function truckModel(p, cargo = 0) {
+function truckModel(p, cargo = 0, enemy = false) {
   p.shadow(1.05, 0.52);
   p.box(-0.56, -0.28, 0.16, 1.13, 0.56, 0.13, "#50564f");
   for (const x of [-0.4, -0.13, 0.38])
@@ -327,9 +327,9 @@ function truckModel(p, cargo = 0) {
   p.box(-0.52, -0.219, 0.5, 0.65, 0.44, 0.02, cargo ? "#a79972" : "#49584f");
   for (let i = 0; i < 5; i++)
     p.box(-0.5 + i * 0.14, 0.251, 0.31, 0.026, 0.011, 0.16, "#9d9f89");
-  p.box(0.21, -0.25, 0.29, 0.37, 0.5, 0.27, "#78968c");
+  p.box(0.21, -0.25, 0.29, 0.37, 0.5, 0.27, enemy ? "#b47d62" : "#78968c");
   p.box(0.31, -0.23, 0.505, 0.233, 0.46, 0.14, "#405456");
-  p.box(0.2, -0.26, 0.644, 0.36, 0.52, 0.047, "#93a99a");
+  p.box(0.2, -0.26, 0.644, 0.36, 0.52, 0.047, enemy ? "#c7997c" : "#93a99a");
   p.box(0.53, -0.25, 0.3, 0.14, 0.5, 0.14, "#6c8c7e");
   p.box(0.66, -0.22, 0.31, 0.02, 0.09, 0.064, "#e2d3a0");
   p.box(0.66, 0.13, 0.31, 0.02, 0.09, 0.064, "#e2d3a0");
@@ -351,7 +351,7 @@ function tankModel(p, enemy = false) {
   p.box(0.81, -0.074, 0.53, 0.21, 0.15, 0.115, col);
   p.line([-0.24, 0.17, 0.59], [-0.3, 0.18, 1.08], "#49544a", 0.019);
 }
-function infantryModel(p, enemy = false) {
+function infantryModel(p, type, enemy = false) {
   let c = enemy ? "#956d50" : "#667b65";
   p.shadow(0.28, 0.24);
   p.box(-0.105, -0.1, 0, 0.13, 0.11, 0.26, "#495749");
@@ -360,7 +360,18 @@ function infantryModel(p, enemy = false) {
   p.box(-0.17, -0.1, 0.27, 0.08, 0.21, 0.19, "#777d64");
   p.cyl(0, 0, 0.46, 0.089, 0.085, "#b09875", 7);
   p.cyl(-0.008, 0, 0.52, 0.112, 0.07, c, 8, 0.085);
-  p.line([0.03, 0.12, 0.37], [0.34, 0.12, 0.38], "#394640", 0.047);
+  if (type === "medic") {
+    p.box(-0.22, -0.12, 0.28, 0.13, 0.25, 0.19, "#d7cda9");
+    p.box(-0.15, 0.15, 0.28, 0.14, 0.07, 0.16, "#abc5a1");
+    p.cyl(0, 0, 0.562, 0.1, 0.027, "#c3cfac", 8);
+  } else if (type === "rocketeer") {
+    p.line([-0.19, 0.13, 0.43], [0.45, 0.13, 0.46], "#5a604c", 0.105);
+    p.line([0.33, 0.13, 0.455], [0.44, 0.13, 0.46], "#a59a6e", 0.12);
+  } else if (type === "gunner") {
+    p.box(-0.15, -0.16, 0.27, 0.26, 0.32, 0.18, "#586652");
+    p.line([0.02, 0.14, 0.33], [0.47, 0.14, 0.34], "#36453c", 0.072);
+    p.box(0.06, 0.11, 0.22, 0.12, 0.12, 0.14, "#aa996b");
+  } else p.line([0.03, 0.12, 0.37], [0.34, 0.12, 0.38], "#394640", 0.047);
 }
 function rock(p, x, y, r, seed, col) {
   let rand = random(seed * 931 + 1),
@@ -525,6 +536,8 @@ function model(p, type, opts = {}) {
     case "factory":
     case "barracks":
       facilityModel(p, type);
+      if (opts.team === "enemy")
+        p.box(0.65, 0.9, 0.12, 0.52, 0.1, 0.18, "#b16e55");
       break;
     case "hq":
       hqModel(p);
@@ -541,13 +554,16 @@ function model(p, type, opts = {}) {
         : oilModel(p, opts.time || 0);
       break;
     case "truck":
-      truckModel(p, opts.cargo);
+      truckModel(p, opts.cargo, opts.team === "enemy");
       break;
     case "tank":
       tankModel(p, opts.team === "enemy");
       break;
     case "infantry":
-      infantryModel(p, opts.team === "enemy");
+    case "medic":
+    case "rocketeer":
+    case "gunner":
+      infantryModel(p, type, opts.team === "enemy");
       break;
   }
 }

@@ -93,8 +93,7 @@ function contextTypes() {
 }
 function locked(type) {
   if (orders[type]) return "";
-  if (!TYPES[type].buildTime && !selected[0]?.built)
-    return "Construction in progress";
+  if (!TYPES[type].buildTime) return sim.productionBlock(selected, type);
   if (!sim.canBuy(type)) return "Insufficient resources";
   return "";
 }
@@ -111,7 +110,7 @@ function thumbnail(cv, type, opts = {}) {
       ? Math.min(r.width / 5.25, r.height / 3.95)
       : Math.min(r.width / 2.1, r.height / 1.48);
   let p = new Painter(c, size, r.width * 0.5, r.height * (large ? 0.74 : 0.65));
-  if (type === "infantry") p.scale *= 1.55;
+  if (TYPES[type].infantry) p.scale *= 1.55;
   model(p, type, opts);
 }
 function drawCards(host, types) {
@@ -134,22 +133,29 @@ function drawCards(host, types) {
         "</div>";
       b.title = order.name + " (" + order.key + "), then click the battlefield";
     } else {
-      const [m, o] = TYPES[type].cost;
+      const count = TYPES[type].trainTime ? selected.length : 1;
+      const [m, o] = TYPES[type].cost.map((cost) => cost * count);
       b.innerHTML =
         '<div class="cardart"><canvas></canvas><span>' +
         (i + 1) +
         '</span></div><div class="cardname">' +
         TYPES[type].name +
+        (count > 1 ? " ×" + count : "") +
         '</div><div class="cardcost"><span>' +
         icon("metal") +
         m +
         "</span>" +
         (o ? '<span class="oilcost">' + icon("oil") + o + "</span>" : "") +
         "<small>" +
-        (TYPES[type].buildTime || (type === "tank" ? 8 : 4)) +
+        (TYPES[type].buildTime || TYPES[type].trainTime) +
         "s</small></div>";
       b.title =
-        TYPES[type].name + " · " + m + " metal" + (o ? ", " + o + " oil" : "");
+        TYPES[type].name +
+        " · " +
+        m +
+        " metal" +
+        (o ? ", " + o + " oil" : "") +
+        (TYPES[type].role ? " · " + TYPES[type].role : "");
     }
     b.onclick = () => action(type);
     host.append(b);
@@ -158,14 +164,27 @@ function drawCards(host, types) {
 }
 function cards() {
   const commands = contextTypes();
-  $("commandTitle").textContent = TYPES[selected[0]?.type]?.produces
-    ? "PRODUCTION"
+  const producer =
+    selected[0]?.team === "ally" && TYPES[selected[0].type].produces;
+  $("commandTitle").textContent = producer
+    ? (selected[0].type === "factory" ? "FACTORY" : "BARRACKS") + " PRODUCTION"
     : "ORDERS";
+  $("selectProducers").hidden = !producer;
+  $("selectProducers").textContent =
+    selected[0]?.type === "factory" ? "Select factories" : "Select barracks";
   drawCards($("cards"), commands);
   if (!commands.length)
     $("cards").textContent = "Select a friendly unit or building.";
   if (!$("buildMenu").hidden) drawCards($("buildCards"), buildTypes);
 }
+$("selectProducers").onclick = () => {
+  const type = selected[0]?.type;
+  const group = sim.facilities.filter(
+    (b) => b.type === type && b.team === "ally" && b.built && b.hp > 0,
+  );
+  if (group.length) choose(group);
+  else notify("Construction in progress");
+};
 function showBuild(open) {
   $("buildMenu").hidden = !open;
   $("openBuild").setAttribute("aria-expanded", String(open));
@@ -244,9 +263,12 @@ function action(type) {
     touchFootprint = null;
   } else {
     const b = selected[0];
-    if (sim.train(b, type))
+    if (sim.train(selected, type))
       notify(
-        TYPES[type].name + " queued at " + TYPES[b.type].name.toLowerCase(),
+        TYPES[type].name +
+          (selected.length > 1
+            ? " queued at each of " + selected.length + " buildings"
+            : " queued at " + TYPES[b.type].name.toLowerCase()),
       );
     else notify("Production queue full");
     ui();
@@ -300,7 +322,13 @@ function ui() {
   if (o?.built === false && !o.remaining)
     label = o.type === "metal" ? "Metal deposit" : "Oil field";
   if (selected.length > 1) {
-    label = selected.length + " units";
+    label =
+      selected.length +
+      (o.type === "factory"
+        ? " factories"
+        : o.type === "barracks"
+          ? " barracks"
+          : " units");
     category = "CONTROL GROUP";
   }
   $("name").textContent = label;
@@ -321,7 +349,11 @@ function ui() {
         ? (100 * hp) / max
         : 0) + "%";
   let detail = "";
-  if (selected.length > 1) detail = "Right-click to issue an order";
+  if (selected.length > 1 && TYPES[o.type].produces)
+    detail =
+      "One per building · Queues " +
+      selected.map((b) => b.queue.length + "/5").join(" · ");
+  else if (selected.length > 1) detail = "Right-click to issue an order";
   else if (o?.remaining) detail = "Under construction";
   else if (o === sim.hq) detail = "Sets the default rally point";
   else if (o?.type === "refinery") detail = "Receives metal and oil shipments";
@@ -362,7 +394,7 @@ function ui() {
             : o.movement === "attackMove"
               ? "Attack moving"
               : "Moving"
-          : "Standing by";
+          : TYPES[o.type].role || "Standing by";
   $("detail").textContent = detail;
   const k =
     (o?.type || "") +
@@ -487,7 +519,7 @@ function pick(p) {
     let base = o.type === "hq" || o.type === "enemyHQ",
       unit = o.angle !== undefined;
     let [x, y] = field.p.screen(o.x, o.y, base ? 0.62 : unit ? 0.24 : 0.3);
-    let w = unit ? (o.type === "infantry" ? 0.28 : 0.8) : base ? 2.3 : 1.4;
+    let w = unit ? (TYPES[o.type].infantry ? 0.28 : 0.8) : base ? 2.3 : 1.4;
     let h = unit ? 0.46 : base ? 1.38 : 1.05;
     let v =
       ((x - p.x) / Math.max(8, w * field.scale)) ** 2 +
@@ -502,11 +534,12 @@ function pick(p) {
 function order(p, obj, kind = "context") {
   if (paused || sim.end) return;
   if (
-    selected.length === 1 &&
-    sim.canRally(selected[0]) &&
+    selected.length &&
+    selected.every((o) => sim.canRally(o)) &&
     (kind === "rally" || kind === "context")
   ) {
-    sim.setRally(selected[0], field.inverse(p.x, p.y));
+    for (const building of selected)
+      sim.setRally(building, field.inverse(p.x, p.y));
     notify("Rally point set");
     return;
   }
@@ -544,7 +577,10 @@ function click(p, e) {
       return;
     }
     if (orders[mode]) {
-      if (mode === "haul" && (!sim.sites.includes(o) || !o.built)) {
+      if (
+        mode === "haul" &&
+        (!sim.sites.includes(o) || !o.built || o.team !== "ally")
+      ) {
         notify("Select an operating mine or oil well");
         return;
       }
@@ -612,18 +648,21 @@ function click(p, e) {
     return;
   }
   if (o) {
-    choose(
-      e.shiftKey && o.angle !== undefined && o.team === "ally"
-        ? [
-            ...new Set([
-              ...selected.filter(
-                (u) => u.angle !== undefined && u.team === "ally",
-              ),
-              o,
-            ]),
-          ]
-        : [o],
-    );
+    if (e.shiftKey && o.team === "ally" && TYPES[o.type].produces) {
+      choose([
+        ...new Set([
+          ...selected.filter((b) => b.team === "ally" && b.type === o.type),
+          o,
+        ]),
+      ]);
+    } else if (e.shiftKey && o.team === "ally" && o.angle !== undefined) {
+      choose([
+        ...new Set([
+          ...selected.filter((u) => u.team === "ally" && u.angle !== undefined),
+          o,
+        ]),
+      ]);
+    } else choose([o]);
   } else choose([]);
 }
 canvas.oncontextmenu = (e) => e.preventDefault();
@@ -780,7 +819,7 @@ function manual() {
   stop();
   dialog(
     "Field manual",
-    "<p>Open <b>Build (B)</b> and place a refinery on clear grid tiles. Green footprints fit. On touchscreens, tap once to preview and again to place. When it opens, its first hauler starts collecting from the metal mine. Add an oil well to supply your tanks.</p><ul><li>Select a truck and use <b>Assign route</b>, or right-click an operating mine or well. Trucks carry up to 35 from a site’s 160-unit reserve and unload at a refinery.</li><li>Build and select a <b>barracks</b> for infantry or a <b>vehicle factory</b> for haulers and tanks. Each building runs its own queue.</li><li>Click or drag to select. Double-click a friendly unit or building to select friendly units within five tiles. Right-click terrain with a building selected to set its rally point. Choose <b>Move (M)</b> or <b>Attack Move (A)</b>, then click the destination. Right-click an enemy to focus fire.</li><li>Pan with the tac map, arrow keys, middle-drag, or touch drag. Scroll to zoom. H centers HQ and Space pauses.</li></ul>",
+    "<p>Both sides start with a working mine, refinery and truck. The northern base collects its own resources, builds production facilities, and sends attack waves. Open <b>Build (B)</b> to expand on clear tiles. Green footprints fit. On touchscreens, tap once to preview and again to place. Add an oil well to supply your tanks.</p><ul><li>Select a truck and use <b>Assign route</b>, or right-click an operating mine or well. Trucks carry up to 35 from a site’s 160-unit reserve and unload at a refinery.</li><li>Build and select a <b>barracks</b> for infantry or a <b>vehicle factory</b> for haulers and tanks. Shift-click matching producers, or use Select factories or Select barracks. Each unit click queues one at every selected building and charges the displayed group cost. Rocketeers counter tanks, machine gunners counter infantry, and unarmed field medics heal wounded infantry.</li><li>Click or drag to select. Double-click a friendly unit or building to select friendly units within five tiles. Right-click terrain with a building selected to set its rally point. Choose <b>Move (M)</b> or <b>Attack Move (A)</b>, then click the destination. Right-click an enemy to focus fire.</li><li>Pan with the tac map, arrow keys, middle-drag, or touch drag. Scroll to zoom. H centers HQ and Space pauses.</li></ul>",
     [["Return to field", resume]],
   );
 }

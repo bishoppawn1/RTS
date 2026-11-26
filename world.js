@@ -41,7 +41,7 @@ function dry(x, y) {
 function clearLand(x, y, b) {
   if (
     !dry(x, y) ||
-    BUILD_ZONES.some(
+    [...BUILD_ZONES, ...ENEMY_ZONES].some(
       ([left, top, right, bottom]) =>
         x > left - 0.65 && x < right + 1 && y > top - 0.65 && y < bottom + 0.65,
     ) ||
@@ -388,7 +388,7 @@ class Field {
         ? 1.72
         : o.built !== undefined
           ? 1.39
-          : o.type === "infantry"
+          : TYPES[o.type].infantry
             ? 0.27
             : 0.69;
     const d = w * 0.81;
@@ -452,7 +452,10 @@ class Field {
   }
   render(selected, mode, box, point, cursor) {
     this.size();
-    if (this.dirty) this.drawGround();
+    if (this.dirty || this.terrainVersion !== this.sim.nav.version) {
+      this.drawGround();
+      this.terrainVersion = this.sim.nav.version;
+    }
     let p = this.p,
       c = this.ctx;
     c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
@@ -466,7 +469,7 @@ class Field {
       ...this.sim.structures,
       ...this.sim.units,
     ]
-      .filter((o) => o.hp !== 0 && this.visible(o.x, o.y, 145))
+      .filter((o) => !(o.hp <= 0) && this.visible(o.x, o.y, 145))
       .sort((a, b) => a.x + a.y - (b.x + b.y));
     this.labels = [];
     for (let o of objects) {
@@ -534,7 +537,12 @@ class Field {
       );
     }
     for (let b of this.sim.shots)
-      p.line([b.x, b.y, 0.48], [b.tx, b.ty, 0.37], "#ffe0a0", 0.055);
+      p.line(
+        [b.x, b.y, 0.48],
+        [b.tx, b.ty, 0.37],
+        b.heal ? "#b3f3bf" : "#ffe0a0",
+        0.055,
+      );
     if (point && point.until > performance.now()) {
       let [x, y] = p.screen(point.x, point.y);
       c.strokeStyle = "#e4ffe5";

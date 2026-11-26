@@ -884,3 +884,26 @@ dialog ul {
     display: none;
   }
 }
+
+#selectProducers {
+  font: 11px var(--mono);
+  border: 1px solid #607259;
+  border-radius: 3px;
+  padding: 3px 6px;
+  color: var(--mint);
+}
+#cards:has(> :nth-child(5)) {
+  overflow-x: auto;
+}
+#cards:has(> :nth-child(5)) .card {
+  min-width: 77px;
+}
+@media (max-width: 850px) {
+  .orders .panel-head:has(#selectProducers:not([hidden])) {
+    letter-spacing: 0;
+    gap: 4px;
+  }
+  .orders .panel-head:has(#selectProducers:not([hidden])) i {
+    display: none;
+  }
+}

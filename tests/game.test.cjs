@@ -43,17 +43,26 @@ test("grid construction reserves the footprint and grants exactly one truck at c
   assert.equal(b.build(site, "refinery"), null);
   advance(b, 9.9);
   assert(!refinery.built);
-  assert(!b.units.some((u) => u.type === "truck"));
+  assert(!b.units.some((u) => u.depot === refinery));
   advance(b, 0.2);
-  const trucks = b.units.filter((u) => u.type === "truck");
+  const trucks = b.units.filter((u) => u.depot === refinery);
   assert.equal(trucks.length, 1);
   const truck = trucks[0];
   assert.equal(truck.job.type, "metal");
-  for (let i = 0; i < 1600 && b.metal === 270; i++) b.tick(0.05);
-  assert(b.metal > 270);
-  const dock = b.exitPoint(refinery);
-  assert(Math.hypot(truck.x - dock.x, truck.y - dock.y) < 0.35);
-  assert.equal(b.units.filter((u) => u.type === "truck").length, 1);
+  let delivered = false;
+  for (let i = 0; i < 2000 && !delivered; i++) {
+    const cargo = truck.cargo,
+      metal = b.metal;
+    b.tick(0.05);
+    if (cargo && !truck.cargo) {
+      assert(b.metal >= metal + cargo);
+      const dock = b.exitPoint(refinery);
+      assert(Math.hypot(truck.x - dock.x, truck.y - dock.y) < 0.35);
+      delivered = true;
+    }
+  }
+  assert(delivered);
+  assert.equal(b.units.filter((u) => u.depot === refinery).length, 1);
   const second = b.build(plot(b, "refinery"), "refinery");
   advance(b, 10.1);
   assert(second.built);
@@ -65,8 +74,7 @@ test("grid construction reserves the footprint and grants exactly one truck at c
 test("independent timed production, resource assignments, exclusive loading, and rallies", () => {
   const b = game();
   b.metal = 2000;
-  const refinery = b.build(plot(b, "refinery"), "refinery");
-  advance(b, 10.1);
+  const refinery = b.refineries()[0];
   const well = b.sites.find((s) => s.type === "oil");
   assert.equal(b.build(well, "metal"), null);
   assert(b.build(well, "oil"));
@@ -92,7 +100,7 @@ test("independent timed production, resource assignments, exclusive loading, and
   );
   assert(infantry);
   assert.equal(infantry.goal, barracks.rally);
-  const trucks = b.units.filter((u) => u.type === "truck");
+  const trucks = b.units.filter((u) => u.team === "ally" && u.type === "truck");
   assert.equal(trucks.length, 2);
   assert.equal(trucks[1].goal, factory.rally);
   trucks.forEach((u) => b.command([u], well, well));
@@ -182,4 +190,126 @@ test("tactical map and field project, pick, and orient the same world points", (
   });
   assert(Math.abs(corners[0][1] - corners[1][1]) < 1e-9);
   assert(Math.abs(corners[1][0] - corners[2][0]) < 1e-9);
+});
+
+test("both sides start with one working mine, one refinery and one assigned truck", () => {
+  const b = game();
+  for (const team of ["ally", "enemy"]) {
+    const mines = b.sites.filter(
+      (s) => s.team === team && s.built && s.type === "metal",
+    );
+    const refineries = b.refineries(team);
+    const trucks = b.units.filter((u) => u.team === team && u.type === "truck");
+    assert.equal(mines.length, 1);
+    assert.equal(refineries.length, 1);
+    assert.equal(trucks.length, 1);
+    assert.equal(trucks[0].job, mines[0]);
+    assert.equal(trucks[0].depot, refineries[0]);
+    b.assign(
+      trucks[0],
+      b.sites.find((s) => s.team !== team && s.built),
+    );
+    assert.equal(trucks[0].job, mines[0]);
+  }
+  assert.equal(b.objective(), "Build an oil well");
+});
+
+test("two factories accept two group clicks as two tanks per factory, atomically", () => {
+  const b = game();
+  b.metal = 2000;
+  b.oil = 220;
+  const a = b.build(plot(b, "factory"), "factory"),
+    c = b.build(plot(b, "factory"), "factory");
+  advance(b, 14.1);
+  const before = b.metal;
+  for (let i = 0; i < 2; i++) assert(b.train([a, c], "tank"));
+  assert.equal(b.metal, before - 720);
+  assert.equal(b.oil, 0);
+  assert(!b.train([a, c], "tank"));
+  assert.equal(a.queue.length, 2);
+  assert.equal(c.queue.length, 2);
+  for (let i = 0; i < 3; i++) assert(b.train(a, "truck"));
+  assert(!b.train([a, c], "truck"));
+  assert.equal(c.queue.length, 2);
+  b.setRally(a, { x: 1, y: 2 });
+  b.setRally(c, { x: 2, y: 1 });
+  advance(b, 16.2);
+  assert.equal(
+    b.units.filter((u) => u.team === "ally" && u.type === "tank").length,
+    5,
+  );
+  assert.equal(c.queue.length, 0);
+  assert.equal(a.queue.length, 3);
+});
+
+test("northern base funds construction, delivers both resources and sends trained units to HQ", () => {
+  const b = game();
+  let deliveredMetal = false,
+    deliveredOil = false,
+    trainedTank = false;
+  const openingTank = b.units.find(
+    (u) => u.team === "enemy" && u.type === "tank",
+  );
+  for (let i = 0; i < 7800 && !b.end; i++) {
+    const loaded = b.units
+      .filter((u) => u.team === "enemy" && u.type === "truck" && u.cargo)
+      .map((u) => [u, u.cargoType]);
+    b.tick(0.05);
+    for (const [u, type] of loaded)
+      if (!u.cargo) {
+        assert.equal(u.depot.team, "enemy");
+        assert(u.job === null || u.job.team === "enemy");
+        if (type === "oil") deliveredOil = true;
+        else deliveredMetal = true;
+      }
+    trainedTank ||= b.units.some(
+      (u) =>
+        u.team === "enemy" &&
+        u.type === "tank" &&
+        u !== openingTank &&
+        u.raiding,
+    );
+  }
+  assert(deliveredMetal && deliveredOil);
+  assert(trainedTank);
+  assert.equal(b.end, "Headquarters lost");
+  for (const type of ["barracks", "factory"])
+    assert(
+      b.facilities.some(
+        (f) => f.team === "enemy" && f.type === type && f.built,
+      ),
+    );
+  const enemyFactory = b.facilities.find(
+    (f) => f.team === "enemy" && f.type === "factory",
+  );
+  assert(!b.train(enemyFactory, "tank"));
+  assert.equal(b.oil, 0);
+});
+test("specialists gain their target bonuses and field medics heal friendly infantry only", () => {
+  function hit(type, targetType) {
+    const b = new Battle();
+    b.units = [];
+    const shooter = b.spawn(type, { x: 5, y: 3 }),
+      target = b.spawn(targetType, { x: 6, y: 3 }, "enemy");
+    b.tick(0.05);
+    return target.maxHp - target.hp;
+  }
+  assert(hit("rocketeer", "tank") > hit("rocketeer", "infantry"));
+  assert(hit("gunner", "infantry") > hit("gunner", "tank"));
+  const b = new Battle();
+  b.units = [];
+  const p = { x: 4, y: 4 },
+    medic = b.spawn("medic", p),
+    friend = b.spawn("rocketeer", p),
+    tank = b.spawn("tank", p),
+    enemy = b.spawn("infantry", p, "enemy");
+  friend.hp -= 3;
+  tank.hp -= 10;
+  enemy.hp -= 10;
+  tank.cool = friend.cool = enemy.cool = 5;
+  b.tick(0.05);
+  assert.equal(friend.hp, friend.maxHp);
+  assert.equal(tank.hp, tank.maxHp - 10);
+  assert.equal(enemy.hp, enemy.maxHp - 10);
+  assert(medic.cool > 0);
 });
